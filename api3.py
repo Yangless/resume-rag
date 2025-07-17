@@ -12,38 +12,33 @@ resumes = [
     ]*5
 
 def put_data(resume):
-    return f""" 请你作为专业的简历信息提取助手。不要输出无意义重复的数字或者字母。
-            从提供的简历文本中精准提取并分类以下7类信息：基本信息、教育经历、工作经历、项目经历、培训经历、个人评价、技能证书。
-            提取规则和格式要求：
-            返回格式严格为JSON对象。
-            不要输出无关提示信息。
-            只返回JSON对象，不要反其他任何信息
-            JSON对象必须且仅包含以下7个顶级键：
+    return f""" 
 
-                基本信息 (字符串): 包含姓名、性别、年龄、工作年限、学历、现居地、户籍、政治面貌、求职状态、求职意向（职位、薪资、城市、行业、类型）等。所有这些信息应合并为一个简洁的字符串。
-                教育经历 (字符串数组): 每一项应是该段教育经历的总结。例如："时间段 学校名称 专业 学历 学习类型"。
-                工作经历 (字符串数组): 每一项应是该段工作经历的总结，字数不超过100字。例如："时间段 公司名称 职位 职责描述"。
-                项目经历 (字符串数组): 每一项应是该段项目经历的总结，字数不超过100字。例如："时间段 项目名称 角色 职责描述 成果"。
-                培训经历 (字符串数组): 每一项应是该段培训经历的总结。
-                个人评价 (字符串): 包含对自身的总结和评价。
-                技能证书 (字符串): 包含掌握的技能和获得的证书。
-                内容归类： 简历中的所有相关信息都应归入这7个指定类别中。不允许创建其他键。
-                
-                空标签处理： 如果某个标签在简历中没有提取到任何内容，请返回其对应的空字符串（如 ""）或空列表（如 []）。
-                
-                避免重复信息： 提取的信息应精炼，避免不必要的重复。
-                
-                避免JSON嵌套： 除了顶级的JSON对象，其内部的值（字符串或字符串数组）不应包含额外的JSON结构。
-            
-                简历文本:
-                {resume}
-            
-                返回JSON格式:
-                ```json
-                {{"基本信息":"","教育经历":[],"工作经历":[],"项目经历":[],"培训经历":[],"个人评价":"","技能证书":""}}
-                ```
-                
-                """
+
+
+<Instructions>
+你是一个专业的人力资源（HR）信息提取AI助手。你的任务是仔细阅读一份简历文本，并从中提取关键信息，删除冗余内容，仅保留重要内容和有效要点，用简洁清晰的语言表达。，然后按照严格的JSON格式输出。
+
+这是需要你分析的简历文本：
+<resume_text>
+{resume}
+</resume_text>
+
+请遵循以下规则进行信息提取和格式化：
+
+1. **输出格式**: 你的最终输出**必须**是一个单一、完整、有效的JSON对象。不要在JSON对象前后添加任何说明性文字、注释或Markdown代码块（例如 json）。
+2. **JSON结构**: 生成的JSON对象**必须**包含以下七个顶级键，且仅包含这七个键。请使用中文作为键名：
+   - "基本信息": (对象) 包含姓名、电话、邮箱、求职意向等个人基本资料。
+   - "教育经历": (对象数组 [{{}}]) 包含所有教育背景。每个对象应包含学校、专业、学历、在校时间等字段。
+   - "工作经历": (对象数组 [{{}}]) 包含所有工作经验。每个对象应包含公司名称、职位、在职时间、工作内容等字段。
+   - "项目经历": (对象数组 [{{}}]) 包含所有项目经验。每个对象应包含项目名称、项目角色、项目时间、项目描述等字段。
+   - "培训经历": (对象数组 [{{}}]) 包含所有培训经历。每个对象应包含培训机构、课程名称、时间等。
+   - "个人评价": (字符串 "") 包含简历中的自我评价或职业总结部分。
+   - "技能证书": (对象) 包含专业技能和获得的证书。可以按技能类别分类，例如 {{"语言技能": [], "专业技能": [], "证书": []}}。
+   - 所有内容必须经过**信息浓缩与语言简化**，避免冗长重复，直击重点。
+   - 不要思考,不要调用工具
+3. **处理缺失信息**: 如果简历中没有找到某个类别的信息（例如，没有任何“培训经历”），请不要省略该键。对于期望是对象数组的键（如教育经历, 工作经历等），请使用空数组 [] 作为其值；对于期望是字符串的键（如个人评价），请使用空字符串 "" 作为其值；对于期望是对象的键（如基本信息），请使用空对象 {{}}。</Instructions>
+"""
 # put_data(j)
 #resumes_dict= [{str(i):put_data(j) for i,j in enumerate(resumes)}]
 """
@@ -73,7 +68,7 @@ i=0
 for result in results:
     # resumeId,resumeContent
     i+=1
-    if i>40:
+    if i>20:
         break
     #if i not in  [18]:
         #continue
@@ -84,12 +79,15 @@ for result in results:
         #resumes_dict.append(resumes)
         #resumes = {}
 resumes_dict.append(resumes)
+# print(resumes_dict[0])
 
 
 #print(resumes_dict)
 # "/root/resume_summary/Qwen3-1.7B"
 #"/root/resume_summary/qwen2.5-1.5B-merge1"
 async def send_request(session, resume):
+
+    print(resume)
     async with session.post('http://172.16.2.21:8009/summary', headers={'token':'d21b5ecb0ade56ca789a959e2bb57074'},
                             json=
                             {"text": resume,
@@ -98,18 +96,17 @@ async def send_request(session, resume):
                              "top_p": 0.9,
                              "top_k":20,
                              "presence_penalty": 0.3,
-                             "instruct":False,
-                             "model_path":"/root/resume_summary/qQwen3-1.7B",
-                             "segment":True,
+                             "instruct":True,
+                             "model_path":"/root/resume_summary/Qwen3-1.7B",
+                             "segment":False,
                              "repetition_penalty":1.2,
                              "alter":False,   # True导致llm重新加载模型
                              "max_num_seqs":40,  # 最大批次
-                             "gpu_memory_utilization":0.9,
-                             "enable_think":False
+                             "gpu_memory_utilization":0.9
                              }) as response:
         print(f"Status: {response.status}")
         data = await response.json()
-        print("Response:", data)
+        # print("Response:", data)
         return data
 
 async def main():
@@ -120,12 +117,12 @@ async def main():
         return results
 
 if __name__ == '__main__':
-    collection1 = db['resume_summary']
+    collection1 = db['resume_summary2']
     start=time.time()
     result=asyncio.run(main())
     end=time.time()
     print(end-start)
-    print(result)
+    # print(result)
 
     for i in range(len(result)):
         for key,value in result[i].items():

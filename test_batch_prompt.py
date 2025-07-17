@@ -50,7 +50,6 @@ class Config:
     gpu_memory_utilization:Optional[float] = 0.9
     model_path: str=None
     alter: Optional[bool] = False
-    enable_think:Optional[bool]=False
 
 
 config=Config()
@@ -115,15 +114,12 @@ def load_vllm_model(config):
 
 
 def extract_first_json(text):
-    if '```json' in text:
-        pattern=r'```json\n*\s*(.*})'
-    else:
-        pattern = r'\{.*\}'
+    pattern = r'\{.*?\}'
     try:
         match = re.findall(pattern, text, flags=re.DOTALL)[-1]
         return match
     except Exception as e:
-        logger.info(f'提取JSON1出错:{e}:{text}')
+        logger.info(f'提取JSON1出错:{e}')
         text_='{'+text
         pattern = r'(\{.*)```'
         try:
@@ -195,8 +191,8 @@ async def run_inference_on_gpu(resumes,sampling_params,config):
                 tokenizer.apply_chat_template(
                     [{"role": "user", "content": prompt}],
                     tokenize=False,
-                    add_generation_prompt=False,
-                    enable_thinking=config.enable_think,
+                    add_generation_prompt=True,
+                    enable_thinking=True,
                 )
                 for prompt in resumes
             ]
@@ -229,7 +225,6 @@ class TextRequest(BaseModel):
     max_num_seqs: Optional[int] = 10
     gpu_memory_utilization: Optional[float] = 0.9
     alter:Optional[bool]=False
-    enable_think:Optional[bool] = False
 
 app = FastAPI()
 
@@ -317,7 +312,6 @@ async def analyze_text(data: TextRequest,token:str=Depends(verify_token)):
         config.model_path = data.model_path
         config.alter=data.alter
         config.gpu_memory_utilization=data.gpu_memory_utilization
-        config.enable_think=data.enable_think
         config.max_num_seqs=data.max_num_seqs
         #logger.info(model_path)
         ###
