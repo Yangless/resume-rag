@@ -46,7 +46,7 @@ class Config:
     segment: bool
     repetition_penalty: Optional[float] = 1.0
     top_k: Optional[int] = 0
-    max_num_seqs:Optional[int] = 10
+    max_num_seqs:Optional[int] = None
     gpu_memory_utilization:Optional[float] = 0.9
     model_path: str=None
     alter: Optional[bool] = False
@@ -102,21 +102,38 @@ def split_and_merge_chunks(chunks, max_length=4000):
 
 def load_vllm_model(config):
     global llm
-    if llm is None or config.alter:
+    if llm is None :
+        if config.max_num_seqs:
+            llm = LLM(model=config.model_path, trust_remote_code=True, dtype="bfloat16",
+                      tensor_parallel_size=1,
+                      max_num_seqs=config.max_num_seqs,
+                      gpu_memory_utilization=config.gpu_memory_utilization,
+                      )
+        else:llm = LLM(model=config.model_path, trust_remote_code=True, dtype="bfloat16",
+                      tensor_parallel_size=1,
+                      gpu_memory_utilization=config.gpu_memory_utilization,
+                      )
+    if config.alter:
         del llm
         gc.collect()
         torch.cuda.empty_cache()
-        llm = LLM(model=config.model_path, trust_remote_code=True,dtype="bfloat16",
-                   tensor_parallel_size=1,
-                  max_num_seqs=config.max_num_seqs,
-                  gpu_memory_utilization=config.gpu_memory_utilization,
-                  )# dtype="half",
+        if config.max_num_seqs:
+            llm = LLM(model=config.model_path, trust_remote_code=True, dtype="bfloat16",
+                      tensor_parallel_size=1,
+                      max_num_seqs=config.max_num_seqs,
+                      gpu_memory_utilization=config.gpu_memory_utilization,
+                      )
+        else:
+            llm = LLM(model=config.model_path, trust_remote_code=True, dtype="bfloat16",
+                      tensor_parallel_size=1,
+                      gpu_memory_utilization=config.gpu_memory_utilization,
+                      )
     return llm
 
 
 def extract_first_json(text):
     if '```json' in text:
-        pattern=r'```json\n*\s*(.*})'
+        pattern=r'```json\n*\s*(.*?)[$|\n*`]'
     else:
         pattern = r'\{.*\}'
     try:
@@ -124,14 +141,7 @@ def extract_first_json(text):
         return match
     except Exception as e:
         logger.info(f'提取JSON1出错:{e}:{text}')
-        text_='{'+text
-        pattern = r'(\{.*)```'
-        try:
-            match = re.findall(pattern, text_, flags=re.DOTALL)[-1]
-            return match
-        except Exception as e:
-            logger.info(f'提取JSON2出错:{e}:{text}')
-            return str(text)
+        return str(text)
 
 def process_json(text):
     label_list = ['基本信息', '教育经历', '工作经历', '项目经历', '培训经历', '个人评价', '技能证书']
@@ -193,7 +203,8 @@ async def run_inference_on_gpu(resumes,sampling_params,config):
 
             batched_inputs = [
                 tokenizer.apply_chat_template(
-                    [{"role": "user", "content": prompt}],
+                    [{"role": "system", "content": "你是一个助手，当被要求时只提供答案而不解释思考过程。"}
+                        ,{"role": "user", "content": prompt}],
                     tokenize=False,
                     add_generation_prompt=False,
                     enable_thinking=config.enable_think,
@@ -206,9 +217,9 @@ async def run_inference_on_gpu(resumes,sampling_params,config):
         responses = [output.outputs[0].text for output in outputs]
 
         #logger.info(responses)
-        cleaned_responses = [extract_first_json(r) for r in responses]
+        #cleaned_responses = [extract_first_json(r) for r in responses]
 
-        return cleaned_responses
+        return responses
     except Exception as e:
         logger.error(f"推理错误: {e}")
         return []
@@ -226,7 +237,7 @@ class TextRequest(BaseModel):
     model_path:str
     repetition_penalty:Optional[float]=1.0
     top_k:Optional[int]=0
-    max_num_seqs: Optional[int] = 10
+    max_num_seqs: Optional[int] = None
     gpu_memory_utilization: Optional[float] = 0.9
     alter:Optional[bool]=False
     enable_think:Optional[bool] = False

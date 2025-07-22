@@ -1,49 +1,59 @@
+import json
+import logging
+import re
 import time
 
-import pandas as pd
-import requests
+import argparse
+import json5
 import asyncio
 import aiohttp
-resumes = [
-        """
-个人简历 简历信息：孙双永 8-9年工作经验 | 男 | 33岁(1983年7月 15日) | 已婚 | 170cm (ID:310051942) 居住地: 北京-昌平区 户 口: 郑州 地 址: 昌平区西二旗 (邮编:000000) 电 话: 13524392655(手机) E-mail: sun007700@126.com 最近工作 [1年3个月] 学历 公 司: 河南豫宏智能家居有限公司 行 业: 计算机软件 职 位: 研发总监 学 历: 大专 专 业: 机械电子工程/机电一体化 学 校: 井冈山大学 目前薪资: 年薪 30-40万 人民币 自我评价 1.能较快学习新的技术理论,并应用于研发当中; 2.善于理思路,发现并解决bug等. 3.目前在编码上基本做到"三个一",即:一次编写,一次编译,一次运行(即可达到预期目标); 4.工作上尽量做到需求和设计到位,这样程序的后期开发和维护会比较轻松. 目前在技术上: 1.熟悉C,C++,STL,对java,C#,php等也了解,做过一些项目. 2.熟悉linux/windows/wince下编程,多进程/多线程/线程池,互斥体,信号量,共享内存/内存池,socket编程等.(目前主要做linux) 3.熟悉g++,makefile,gdb,vi,shell,memwatch,gprof,valgrind,gperftools,Win32,MFC等. 4.熟悉常用数据结构(链表,树)及算法(hash); 5.熟悉sqlserver,mysql,sqlite,oracle,berkeley db数据库. 优势: 1.socket网络编程(windows下iocp,select等,linux下libuv,libev,epoll,select等). 2.对程序进行性能优化以及内存泄露的检测. 目前个人在工作中习惯是,首先根据用户需求以及潜在需求提出解决方案.然后讨论定妥,再形成具体设计文档(流程设计,线程设计,内存设计),争取保证cpu性能和内存的合理利用. 在代码风格上,力求简洁,可扩展,易维护,不喜欢重复劳动.最讨厌做得很辛苦,却不出成绩. linuxcc++ 求职意向 到岗时间: 一个月内 工作性质: 全/兼职 目标地点: 北京,上海 期望薪资: 月薪 1500以下 目标职能: 高级软件工程师,项目经理 求职状态: 目前正在找工作 工作经验 2015 /6--至今:河南豫宏智能家居有限公司 (少于50人、民营公司) [1年3个月] 职位名称:研发总监 部门:研发 行业:计算机软件 1. 根据销售部反馈,研发符合市场需要的产品(或者寻找同类产品,预计研发周期和研发费用),与销售部一起预估收益产出比. 2.时刻把控关注业界的技术发展状态.了解同行现在使用的技术,清楚同行的优势和劣势. 3. 带领团队研发设计公司网站和微信公众号. 4. 带领团队修改智慧云谷的客户端界面,根据用户定制. 5. 学习智慧云谷的开发接口. 2014 /4--2015 /6:郑州信大捷安信息技术股份有限公司 (500-1000人、上市公司) [1年2个月] 职位名称:高级软件工程师 部门:研发 行业:计算机软件 1. 研究安全无线路由器,成功在MT7620板子上刷进openwrt等. 2. 根据需求和接口文档,设计编写auditlogger级联日志上报程序和usernotifier用户上下线通知程序. 3. 研究裁剪fedora20内存根文件系统. 4. 根据web管理功能原型设计,设计编写地址,路由,防火墙,SSLVPN,上下线通知,过滤服务器,监测服务等配置的后台代码. 5. 路由和防火墙等配置的前端js开发和集成联调. 6. 编写vpn网关的打包以及安装脚本,并验证安装后所有服务是否启动成功. 7. 测试阶段,根据测试部的反馈,对负责的功能模块进行bug修复完善. 8. 裁剪centos7系统iso,根据需求,进行部分rpm包的删除和添加,以达到使用要求. 9. 将vpn网关程序移到裁剪后的fedora20内存根文件系统中,并测试服务是否启动. 2013 /3--2014 /4:上海云辰信息科技有限公司 (150-500人、民营公司) [1年1个月] 职位名称:高级软件工程师 部门:研发linux探侦组 行业:通信/电信/网络设备 由于公司主要是给公安网警支队提供网络安全审计的,因此我们的产品主要做数据的提取分析(部署在网吧,宾馆,机场等公共场所),然后将其传给公安后台服务器,服务器对提取到的数据进行线索匹配(如某一犯罪嫌疑人的qq账号或者游戏账号等在哪个网吧或宾馆登录了),匹配到以后,马上产生一条报警信息(如嫌疑人谁,在什么地方,登录了什么.),此条报警信息会马上通过短信的形式,发送给当前在执勤的公安人员,公安人员看到短信,会马上安排最近的人员前去进行抓捕工作. 那么,我在上边的工作中负责的是: 1.前台探侦程序的提取分析工作(主要有主程序架构设计,协议识别模块设计编码,协议分析模块中http协议相关的分析工作,用户模块的编码维护) 2.后台接收服务器的设计编码维护(使用libuv第三方库,主线程负责数据接收和发送,线程池负责数据的具体处理). 3.命令下发程序设计,编码(由服务器后台下发指定命令如(对那个网吧电脑进行截屏,录像等),采用udp通信,发送命令给客户端,客户端负责执行命令,并将采集到的数据通过文件发送给接收服务器). 4.短信机程序设计,编码,维护(即上边提到的发送短信的工作,采用串口中断模式,读取oracle数据库产生的报警短信,将短信内容,一一发送给指定手机号码). 5.文件打包程序设计,编码,维护(将小文件打包成大文件,主要是因为公安后台使用光闸设备,大文件传输会更快) 6.送检插件程序设计,编码,维护(公安送检使用的) 7.送检http阻断设计,编码,维护(公安送检验证对指定url的阻断) 8.云中心插件程序设计,编码,维护(负责接收第三方厂商的数据,对其进行分析提取) 9.加密狗服务器和客户端程序设计,编码(一个加密狗供多台设备使用) 备注: 1. x86架构,使用centos5.8(前端探侦)和centos6.3(后端服务器). 2. 用到的技术有连接跟踪,libuv,oracle,hash算法,udp socket,dpi,共享内存,链表,线程池,串口通讯,openssl等等. 2009 /11--2013 /2:上海动达网络科技有限公司 (少于50人、民营公司) [3年3个月] 职位名称:项目经理 部门:研发部 行业:通信/电信/网络设备 公司主要研发上网行为管理产品(统一互联网网关). 主要负责: 1. 产品平台整体框架的设计,搭建(从web前端,到后台control plane(控制平面)模块以及数据包处理模块(se)等). 2. 产品模块功能的实现. 3. 策略设计及功能实现:应用(如:qq,迅雷等)控制,应用流量控制,网页访问,搜索引擎关键字,用户黑白名单等. 4. 使用memwatch等工具检测解决内存泄露. 5. qq,usb审计模块的集成,客户端认证模块等等. 6. 协助其他研发人员, 帮其理思路,解决遇到的研发问题. 7. 制定研发的计划任务. 8. 测试公司产品. 9. 编写用户手册等文档. 备注: 1. cavium octeon(mips)多核SE平台下1000---100000人用户产品,1-10Gbps吞吐量. 2. linux(64位大端)+SE双系统; 3. 用到的技术有连接跟踪,状态机,libev,sqlite,hash算法,udp socket,ipv6,ac算法,令牌桶漏桶算法,hook,dpi,共享内存,链表,mysql,软件驱动等等. 2007 /7--2009 /11:上海卓扬科技有限公司 (50-150人、民营公司) [2年4个月] 职位名称:软件工程师 部门:研究开发部 行业:通信/电信/网络设备 主要开发公司视频监控应用软件. 1. outlook程序;winCE平台下的一个工程,主要包括电话薄,拨打电话,收发短信等.采用多进程(内存共享,消息机制),使用vs2005,主要用win32开发,数据库采用winCE自带的. 2. 二代证程序,也是winCE平台下的一个程序,使用串口通信,读取响应命令,可以读取第二代身份证信息.主要给北京公安用. 3. GPS程序,winCE平台下的一个小程序,使用串口通信读取经纬度信息. 4. 维护修改STS程序,windows平台下视频流转发程序,使用iocp模型,client请求通过STS程序获取设备视频流.主要解决: 1. 内存泄露问题. 2. 稳定性问题,由原来的最多跑一天多,修改后可以跑一个月以上. 3. 新增其他功能模块等. 5. 研究RtspServer程序,公司目前用的是非标准http协议,但是Rtsp是标准协议,大概用一个半月时间,研究出音频的一个Demo. 6. IVS5.0程序,是一个智能设备配置程序,主要通过其可以对设备进行警戒线,智能报警等的配置.采用mfc,主要使用属性页,一步一步根据用户选择进行配置. 7. UpgradeTool程序,一个升级程序,主要用于升级各个设备,采用ftp上传文件. 8. STS看门狗程序,主要为了STS程序出现崩溃时,可以重启该程序. 9. linux下STS程序.开发STS的linux版本,采用select模型,由一个线程进行监听client,accept到后,查找客户请求的设备是否已经连接存在,如果不存在,则创建线程连接该设备,成功以后.由一个线程进行数据转发,即把recv设备的数据send给客户.另外由一个统计监控软件用于监控STS转发的数据流量,客户信息等.采用xml传输,使用TiXml的一个开源库. 10. 维护NVR存储配置接口程序和NVR-STS配置接口程序.使用mfc加dll库. 11. 维护RAS拨号程序,修改其根据信号强弱选择3G网和gprs网,如果有cdma卡还可以选择cdma网.winCE平台下的一个程序. 12.VStar程序,该工程把目前公司的所有应用软件功能整合在了一起,本人主要负责服务器模块,包括中心服务器(iocp),录像服务器(select),文件下载(select),报警联动服务器(select)等,数据传输采用TiXml(短连接时). 项目经验 2013 /5--至今 短信机程序 软件环境: centos 6.3 硬件环境: intel x86 开发工具: source insight 项目描述: 该程序主要负责从oracle数据库中读取报警短信.将报警内容通过短信机(gsm或者cdma型号)发送给指定手机号码. 1. 采用串口中断式读取. 2. gsm型号采用pdu模式发送中文长短信. 3. cdma型号采用文本模式发送中文长短信. 责任描述: 负责整个程序的设计,编码和维护工作. 2013 /4--至今 服务器接收程序 软件环境: centos 6.3 硬件环境: inter x86 开发工具: source insight 项目描述: 接收程序,主要负责接收前端探侦程序采集到是数据文件. 流程如下: 1. 接收线程使用libuv第三方库进行数据的接收和发送,接收到的数据放入接收链表. 2. 处理线程采用线程池处理接收到的数据.首先,解析消息头,进行头校验,判断消息类型(截屏文件或是普通文件), a. 截屏文件,解析扩展消息头,获取文件名和入库信息.然后开始接收文件,判断是否加密,加密则解密后再写入文件.文件写完以后,产生链接文件,并将入库信息入oracle数据库.最后,回复消息给客户端. b. 普通文件,解析扩展消息头,获取文件名.然后开始接收文件,判断加密类型,根据类型进行解密,解密后写入文件.文件写完以后,产生链接文件.最后,回复消息给客户端. 责任描述: 整体的设计和编码,及后期维护. 2013 /3--至今 探侦数据采集程序 软件环境: centos5.8 硬件环境: intel x86 开发工具: source insight 项目描述: 前端数据采集程序,主要负责采集网吧,宾馆,机场等公共场所的用户数据信息(如发帖,微博,搜索引擎,虚拟身份,qq,msn,飞信,游戏账号,邮件等等) 流程如下: 1. 抓包线程捕获网卡数据包,进行流重组,然后放入ringbuffer缓冲区. 2. 解析线程从ringbuffer缓冲区取数据,进行协议识别,协议解析(是重点,如http协议,qq协议,msn协议,smtp/pop3协议等等),将解析出来的内容,与调用用户认证接口获取的用户信息匹配,调用文件保存接口. 3. 文件保存线程,每隔一分钟,会根据类型定时产生保存文件. 责任描述: 1. 整体架构的设计. 2. 协议识别模块的设计编码维护. 3. 协议解析的设计. 4. http协议解析的编码维护. 5. 用户模块的编码维护. 2012 /1--2013 /2 webALS(web审计日志服务器) 软件环境: centos 6.3 硬件环境: intel 奔四cpu 开发工具: source insight 项目描述: WAF原有日志系统通过文件系统将审计日志写入文件,然后由另一程序读取文件,并将读取的审计日志压缩,写入berkely db数据库.因为WebUTM位于WEB 攻击检测的主线,磁盘I/O操作又比较慢,因此这种记录日志的方式影响了WAF产品系统整体的系统,导致WAF在开启日志记录后导致可检测的HTTP并发数下降明显. 为了解决上述问题,加入webALS程序. 1)webUTM将审计日志(其中包含索引)转发出去; 2)webALS接收,将索引从审计日志中进行提取. 3)根据索引信息形成事件(如:攻击事件等),同时广播出去. 4)审计日志放入内存池队列中,由n个线程从队列中取出,压缩,放入压缩内存池队列. 5)一个线程从压缩队列取出,写入bdb(一.直接入库;二.事务处理). 使用: 1)c语言开发; 2)libev (epoll模型),短连接; 3)内存池,线程池; 4)链表; 5)gzip压缩算法. 6)berkeley db数据库. 责任描述: 负责设计,编码,测试. 测试效果: 1)intel奔四环境下,接收压缩存储1600个/s(每个在1KB). 2009 /11--2012 /10 统一互联网网关 软件环境: linux(64位大端) 硬件环境: hc5000,等(cavium octeon mips芯片) 开发工具: source insight,vc,php等 项目描述: 系统分为3个层面: 1.web用户管理(php实现); 2.se系统(网络数据包处理),(cavium octeon平台sdk实现). 3.control plane(负责将用户注册进系统,同时作为web用户管理和se系统的中间件)(linux进程实现) 具体到实现,有: 1. web模块; 2. ucm(用户控制模块); 3. fsm(统计模块); 4. sem(se与ucm,fsm等模块的中间模块); 5. se(与linux操作系统平级的模块,处理具体网络数据包是否转发,丢弃,重定向等); 6. netflow(负责将fsm的统计信息转发给第三方服务器,有第三方服务器进行记录); 7. common(为其他模块提供公用的函数,数据结构等),每个模块只能使用本身模块的函数及其common模块,便于维护系统; 8. pcm,pcmmail(审计模块,se将要审计应用协议信息写入ringbuffer共享内存,由其读取进行信息审计); 9. auditserver(对有客户端审计发送过来的信息进行记录等处理); 10.watchdog(监控以上模块是否core或者,是否有异常如(内存泄露等),保证系统正常运行); 11.auditclient(用户认证客户端, 集成qq审计,usb审计,usb禁用等程序); 12.dump工具(dump(se模块,数据库)中用户信息,策略信息等,,便于分析系统问题); 用到的技术有:各种hash算法,连接跟踪,应用协议识别,qos(令牌桶漏铜算法),ac算法,libev,udp socket通讯,ipv6,sqlite等. 责任描述: 负责整体架构模块的设计,代码的编写测试(web模块(部分),ucm<部分>,fsm,sem,se(部分),netflow,common,pcm(部分),auditserver,watchdog,auditclient,dump工具) 2009 /11--2012 /10 统一互联网网关产品 软件环境: linux(mips 64位大端) 硬件环境: hc5000,mr321,mr323,mr750,mr950(cavium octeon mips芯片) 开发工具: source insight 项目描述: 产品功能主要有: 1. 系统监控(包括今日用户流量统计,今日应用流量统计,今日网站访问统计,网络即时速率); 2. 用户管理; 2.1在线用户管理(强制下线---设置多长时间不允许上网); 2.2组织管理(建立用户组,新用户,修改用户信息等); 2.3新用户认证(当用户第一次注册时,可以根据ip段对其分组<如研发部门,销售部门>,同时设置部分属性<如:是否免监控,是否认证,认证方式等>; 3.策略管理; 3.1应用控制策略(如:IM<qq,msn,几乎所有主流IM软件>,股票,web视频,游戏,音乐等各种应用)是否禁止等;每个用户最多关联10个应用控制策略,支持添加,删除,修改,调整优先级等,同时支持不同时间段(如:工作时间9点-12点,13点-18点策略生效). 3.2应用流量策略(如:p2p(迅雷,电驴,qq旋风,快车,pplive,qqlive等)限速,可以限上行,下行,上下行,单Ip限速,通道限速等; 3.3网站访问控制策略(如:根据系统库(新闻,音乐,招聘等分类),用户自定义网址分类等对网址进行阻塞,重定向,允许等控制); 3.4搜索引擎关键字策略(如在baidu,google等主流搜索引擎中输入敏感关键字<如:色情,招聘,求职等>,对其进行阻塞等); 3.5用户黑白名单(黑名单用户不允许上网,白名单用户为免监控用户); 3.6防火墙策略(对于指定的ip,端口进行封堵等); 3.7usb禁用,只读等策略; 4.内容审计 4.1电子邮件审计(对主流邮箱,如<126,163,qq,hotmail,sohu,sina,yahoo,139等邮箱>进行外发审计,smtp,pop3,imap协议邮件进行审计等); 4.2论坛发帖审计(如在天涯,猫扑等论坛发帖,会对其发帖内容,及具体帖子url进行记录); 4.3微博审计(如在新浪,qq等微博发布信息会对其进行记录); 4.4msn审计(对其聊天内容进行记录); 4.5qq审计(对其聊天内容进行记录); 4.6usb审计(对使用移动设备进行添加,删除,修改,修改文件名等一切内容的记录); 5.系统管理 5.1系统配置(支持旁路,网桥模式配置); 5.2系统重启; 5.3修改密码等; 以上是功能描述. 责任描述: 具体到实现,有: 请看下例,(有字数限制). 教育经历 2004 /9--2007 /7 井冈山大学 机械电子工程/机电一体化 大专 培训经历 2006 /3--2007 /1 上海威迅游戏学院 游戏程序 第一阶段(2个月)学习了游戏策划,运营,程序和美工的知识. 第二阶段(8个月)主要学习了游戏程序有关的知识.学习手机游戏用了2个半月时间,学习了java和J2ME. 后来网络游戏学习了C,C++,Windows编程,MFC,DirectX等. 证书 2007 /4 国家信息技术紧缺人才职业技能证书 2007 /1 游戏程序开发工程师 2005 /9 高等学校英语应用能力考试 A级 (PRETCO)证书 语言能力 英语(良好) IT技能 技能名称 熟练程度 使用时间 Linux 熟练 60月 Visual C++ 熟练 38月 .NET 熟练 28月 其他信息 职业目标: 从07年毕业至今,一直从事软件编程工作,其中 1)前两年半主要做windows下vc++编程. 2)后7年多主要做linux下c,c++编程. 后期个人希望能够做到把控整个产品的质量.因为我个人是希望能够做出精品的.能够让用户称赞的产品才有荣誉感和自豪感.就像苹果一样. 个人对公司的基本期望是 1. 环境还可以,有利于身体健康.特别是空气,水. 2. 公司整体工作氛围良好,有具体的计划和目标,不喜欢想到什么做什么,毫无规划(特别讨厌这个东西很急,马上弄出来.导致程序做的急,很多地方会想不到,后期改动大,维护累).
+from data_dict import resumes
+logger = logging.getLogger("resume_test_logger")
+logger.setLevel(logging.INFO)
 
-"""
-    ]*5
+if not logger.handlers:
+    log_file = "resume_test_logger.log"
+    file_handler = logging.FileHandler(log_file, encoding="utf-8")
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(stream_handler)
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--index', type=int, required=True, help='列表索引')
+parser.add_argument('--end', type=int, required=False,default=80, help='range范围')
+parser.add_argument('--full',action='store_false',required=False,default=True,help='全量样本')
+args = parser.parse_args()
 
 def put_data(resume):
-    return f""" 请你作为专业的简历信息提取助手。不要输出无意义重复的数字或者字母。
-            从提供的简历文本中精准提取并分类以下7类信息：基本信息、教育经历、工作经历、项目经历、培训经历、个人评价、技能证书。
-            提取规则和格式要求：
-            返回格式严格为JSON对象。
-            不要输出无关提示信息。
-            只返回JSON对象，不要反其他任何信息
-            JSON对象必须且仅包含以下7个顶级键：
+    return f""" 
+<Instructions>
+你是一个专业的人力资源（HR）信息提取AI助手。你的任务是仔细阅读一份简历文本，并从中提取关键信息，删除冗余内容，仅保留重要内容和有效要点，用简洁清晰的语言表达。，然后按照严格的JSON格式输出。
+这是需要你分析的简历文本：
+<resume_text>
+{resume}
+</resume_text>
+请遵循以下规则进行信息提取和格式化：
+1. **输出格式**: 你的最终输出**必须**是一个单一、完整、有效的JSON对象。不要在JSON对象前后添加任何说明性文字、注释或Markdown代码块（例如 json）。
+2. **JSON结构**: 生成的JSON对象**必须**包含以下七个顶级键，且仅包含这七个键。请使用中文作为键名：
+   - "基本信息": (对象) 包含姓名、求职意向等个人基本资料，删除所有联系方式（如电话、邮箱、地址、工作年限）等无关求职评估的信息。
+   - "教育经历": (对象数组 [{{}}]) 包含所有教育背景。每个对象应包含学校、专业、学历、在校时间等字段。
+   - "工作经历": (对象数组 [{{}}]) 包含所有工作经验。每个对象应包含公司名称、职位、在职时间、工作内容等字段。
+   - "项目经历": (对象数组 [{{}}]) 包含所有项目经验。每个对象应包含项目名称、项目角色、项目时间、项目描述等字段。
+   - "培训经历": (对象数组 [{{}}]) 包含所有培训经历。每个对象应包含培训机构、课程名称、时间等。
+   - "个人评价": (字符串 "") 包含简历中的自我评价或职业总结部分。
+   - "技能证书": (对象) 包含专业技能和获得的证书。可以按技能类别分类，例如 {{"语言技能": [], "专业技能": [], "证书": []}}。
+   - 所有内容必须经过**信息浓缩与语言简化**，避免冗长重复，直击重点。
+   - 不要思考,不要调用工具
+3. **处理缺失信息**: 如果简历中没有找到某个类别的信息（例如，没有任何“培训经历”），请不要省略该键。对于期望是对象数组的键（如教育经历, 工作经历等），请使用空数组 [] 作为其值；对于期望是字符串的键（如个人评价），请使用空字符串 "" 作为其值；对于期望是对象的键（如基本信息），请使用空对象 {{}}。
+</Instructions>
+"""
 
-                基本信息 (字符串): 包含姓名、性别、年龄、工作年限、学历、现居地、户籍、政治面貌、求职状态、求职意向（职位、薪资、城市、行业、类型）等。所有这些信息应合并为一个简洁的字符串。
-                教育经历 (字符串数组): 每一项应是该段教育经历的总结。例如："时间段 学校名称 专业 学历 学习类型"。
-                工作经历 (字符串数组): 每一项应是该段工作经历的总结，字数不超过100字。例如："时间段 公司名称 职位 职责描述"。
-                项目经历 (字符串数组): 每一项应是该段项目经历的总结，字数不超过100字。例如："时间段 项目名称 角色 职责描述 成果"。
-                培训经历 (字符串数组): 每一项应是该段培训经历的总结。
-                个人评价 (字符串): 包含对自身的总结和评价。
-                技能证书 (字符串): 包含掌握的技能和获得的证书。
-                内容归类： 简历中的所有相关信息都应归入这7个指定类别中。不允许创建其他键。
-                
-                空标签处理： 如果某个标签在简历中没有提取到任何内容，请返回其对应的空字符串（如 ""）或空列表（如 []）。
-                
-                避免重复信息： 提取的信息应精炼，避免不必要的重复。
-                
-                避免JSON嵌套： 除了顶级的JSON对象，其内部的值（字符串或字符串数组）不应包含额外的JSON结构。
-            
-                简历文本:
-                {resume}
-            
-                返回JSON格式:
-                ```json
-                {{"基本信息":"","教育经历":[],"工作经历":[],"项目经历":[],"培训经历":[],"个人评价":"","技能证书":""}}
-                ```
-                
-                """
+
+
+
 # put_data(j)
 #resumes_dict= [{str(i):put_data(j) for i,j in enumerate(resumes)}]
 """
@@ -61,6 +71,8 @@ client = MongoClient('mongodb://resume_db_test:F1rOLEw3OyRu558mROeX@dds-bp1f9e51
 #print(client.list_database_names())
 db = client['resume_db_test']
 collection = db['resumeCollection']
+
+"""
 query = {
     "status": {"$in": [6]},
     "corpCode": "3DMed"
@@ -70,6 +82,7 @@ results = collection.find(query)
 resumes={}
 resumes_dict=[]
 i=0
+content_len=[]
 for result in results:
     # resumeId,resumeContent
     i+=1
@@ -79,53 +92,137 @@ for result in results:
         #continue
     #if result['resumeId']!=403603:
        # continue
-    resumes[result['resumeId']]=put_data(result['resumeContent'])
-    #if i % 40 == 0:
-        #resumes_dict.append(resumes)
-        #resumes = {}
-resumes_dict.append(resumes)
+    content=result['resumeContent']
+    content_len.append(len(content))
+    resumes[result['resumeId']]=put_data(content)
+    if i % 20 == 0:
+        resumes_dict.append(resumes)
+        resumes = {}
+if resumes:
+    resumes_dict.append(resumes)
+"""
+resumes=resumes[args.index:args.index+1]
+resumes_dict=[]
+if args.full:
+    print('s')
+    for t in range(10,args.end+1,10):
+        resumes_={i:put_data(j) for i,j in enumerate(resumes*t)}
+        resumes_dict.append(resumes_)
+else:
+    print('t')
+    resumes_ = {i: put_data(j) for i, j in enumerate(resumes * args.end)}
+    resumes_dict.append(resumes_)
+content_len=len(resumes[0])
 
 
 #print(resumes_dict)
 # "/root/resume_summary/Qwen3-1.7B"
-#"/root/resume_summary/qwen2.5-1.5B-merge1"
+#"/root/resume_summary/qwen2.5-1.5B-merge"
 async def send_request(session, resume):
-    async with session.post('http://172.16.2.21:8009/summary', headers={'token':'d21b5ecb0ade56ca789a959e2bb57074'},
+    async with session.post('http://172.16.2.35:8009/summary', headers={'token':'d21b5ecb0ade56ca789a959e2bb57074'},
                             json=
                             {"text": resume,
                              "max_tokens": int(0.45*max(len(text) for text in list(resume.values()))),
-                             "temperature": 0.01,
-                             "top_p": 0.9,
-                             "top_k":20,
-                             "presence_penalty": 0.3,
-                             "instruct":False,
-                             "model_path":"/root/resume_summary/qQwen3-1.7B",
-                             "segment":True,
-                             "repetition_penalty":1.2,
+                             "temperature": 0.0,
+                             # "top_p": 1,
+                             # "top_k":10,
+                             #"presence_penalty": 0.4,
+                             "instruct":True,
+                             "model_path":"/root/resume_summary/Qwen3-1.7B",
+                             "segment":False,
+                             #"repetition_penalty":1.2,
                              "alter":False,   # True导致llm重新加载模型
-                             "max_num_seqs":40,  # 最大批次
+                             # "max_num_seqs":60,  # 最大批次
                              "gpu_memory_utilization":0.9,
-                             "enable_think":False
+                             "enable_think":True
                              }) as response:
         print(f"Status: {response.status}")
         data = await response.json()
-        print("Response:", data)
+        #print("Response:", data)
         return data
 
 async def main():
     connector = aiohttp.TCPConnector(limit_per_host=1)
     async with aiohttp.ClientSession(connector=connector) as session:
-        tasks = [send_request(session, resume) for resume in resumes_dict]
-        results = await asyncio.gather(*tasks)
-        return results
+        #tasks = [send_request(session, resume) for resume in resumes_dict]
+        #results = await asyncio.gather(*tasks)
+        if args.full:logger.info(f'-'*20)
+        for i,resume in enumerate(resumes_dict):
+            start = time.time()
+            result=await send_request(session, resume)
+            end = time.time()
+            logger.info(f'耗时:{end - start}')
+            # print(result)
+            logger.info(f'{len(list(result.keys()))}个文本平均长度:{content_len}')
+            if i==len(resumes_dict)-1:
+                for key, value in result.items():
+                    query = {
+                        "status": {"$in": [6]},
+                        "corpCode": "3DMed",
+                        "resumeId": int(key)
+                    }
+                    all_ = []
+                    value = extract_first_json(value)
+                    try:
+                        #results = collection.find(query)[0]
+                        many_data = [
+                            {'resumeId': int(key), 'resume_summary': value,'resume_txt':process_json1(value)}]
+                        collection1.insert_many(many_data)
+                        break
+                    except Exception as e:
+                        many_data = [{'resumeId': int(key), 'resume_summary': value}]
+                        collection1.insert_many(many_data)
+                        break
+
+
+def process_json(all_,text):
+    try:
+        #logger.info(type(text))
+        if isinstance(text,dict):
+            for i in text.values():
+                process_json(all_,i)
+        elif isinstance(text,list):
+            if text:
+                for j in text:
+                    process_json(all_,j)
+        elif text:all_.append(text)
+        return '\n'.join(all_)
+    except Exception as e:
+        #logger.error(f'{e},{text}')
+        return text
+
+def process_json1(text):
+    try:
+        if '</think>' in text:
+            text_=text[::-1]
+            text=re.findall(r'.*(?=>kniht/<)',text_,re.DOTALL)[0][::-1]
+        all_=re.findall(r':\s*\n*"(?![\[{])(.*?)(?=")',text)
+        if all_:return '\n'.join(all_)
+        else:return text
+    except Exception as e:
+        logger.error(f'{e}')
+        return text
+
+def extract_first_json(text):
+  if '```json' in text:
+    pattern=r'```json\n*\s*(.*?)(?:$|`)'
+  else:
+    pattern = r'\{.*\}'
+  try:
+    match = re.findall(pattern,text, flags=re.DOTALL)[-1]
+    return match
+  except Exception as e:
+    #print(f'提取JSON1出错:{e}:{text}')
+    return str(text)
 
 if __name__ == '__main__':
     collection1 = db['resume_summary']
-    start=time.time()
+    #start=time.time()
     result=asyncio.run(main())
+    """
     end=time.time()
-    print(end-start)
-    print(result)
+    logger.info(f'耗时:{end-start}')
+    #print(result)
 
     for i in range(len(result)):
         for key,value in result[i].items():
@@ -134,6 +231,8 @@ if __name__ == '__main__':
                 "corpCode": "3DMed",
                 "resumeId":int(key)
             }
+            all_ = []
+            value=extract_first_json(value)
             try:
                 results = collection.find(query)[0]
                 many_data = [{'resumeId':int(key),'resume':results['resumeContent'],'resume_summary':value}]
@@ -141,4 +240,5 @@ if __name__ == '__main__':
             except Exception as e:
                 many_data = [{'resumeId': int(key), 'resume': resumes[i], 'resume_summary': value}]
                 collection1.insert_many(many_data)
+    """
 
